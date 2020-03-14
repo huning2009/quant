@@ -17,6 +17,33 @@ class Plotor:
     items = sorted(items, key=lambda x:x[0])
     ax.plot([i[0] for i in items], [i[1] for i in items], label=label)
 
+  def MultiPlot(self, m, fig_name='default', show=False):
+    count = 0
+    tickers = m.keys()
+    ksize = len(tickers)
+    ncol, nrow = max(1, int(math.sqrt(ksize))), int(math.sqrt(ksize))+1
+    fig,ax = plt.subplots(nrows=nrow,ncols=ncol,figsize=(self.one_width*ncol,int(self.graph_area/(ncol*self.one_width))))
+    fig.tight_layout()
+    for t in m:
+      if count % (ncol*nrow) == 0 and count > 0:
+          fig.savefig('%s@%s' %(fig_name, str(count)))
+          fig,ax = plt.subplots(nrows=nrow,ncols=ncol,figsize=(self.one_width*ncol,int(self.graph_area/(ncol*self.one_width))))
+          print('finished @%d' %(count))
+      fig.tight_layout()
+      if ncol == 1:
+        this_ax = ax[int(count/ncol)%nrow]
+      else:
+        this_ax = ax[int(count/ncol)%nrow, count%ncol]
+      this_ax.set_title(t)
+      this_ax.grid()
+      for i in m[t]:
+        this_ax.plot(m[t][i], label=i)
+        this_ax.legend()
+      count += 1
+    fig.savefig('%s@%s' %(fig_name, str(count)))
+    if show:
+      plt.show()
+
   def PlotMultiMap(self, mmap, label, path = '', show=False):
     tickers = mmap.keys()
     ksize = len(tickers)
@@ -34,7 +61,7 @@ class Plotor:
         this_ax = ax[int(count/ncol)%nrow, count%ncol]
       if isinstance(mmap[t], list):
         self.PlotList([0.0]+mmap[t], this_ax, t)
-      elif isinstance(mmap[t], map):
+      elif isinstance(mmap[t], dict):
         start = min(mmap[t].keys())- 100
         mmap[t][start] = 0.0
         self.PlotTimeMap(mmap[t], this_ax, t)
@@ -54,6 +81,7 @@ class Plotor:
 if __name__ == '__main__':
   pt = Plotor()
   m = {"a":[i**2 for i in range(100)], "b":[i**3 for i in range(100)]}
-  tm = {"a":{i:i**2 for i in range(100)}, "b":{i:i**3 for i in range(100)}}
+  tm = {"a":{i:i**2 for i in range(10)}, "b":{i:i**3 for i in range(10)}}
   m = {'IH': [398.26281569824187, 676.8502469238279], 'IC': [543.9928998046876, 1008.4046122070322, 1472.891766406251, 1937.4634248046896], 'ni': [86.0, 142.0], 'IF': [430.87182810058596, 742.1164718994141]}
-  pt.PlotMultiMap(m, 'test', 'pnl')
+  #pt.PlotMultiMap(tm, 'test', 'pnl', show=True)
+  pt.MultiPlot(tm, 'test')

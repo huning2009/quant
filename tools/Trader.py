@@ -75,12 +75,14 @@ class Trader:
 
   def PlotStratPnl(self, file_name='strat_pnl_hist', show=False):
     self.strat_pnl_hist = {}
+    self.raw_strat_pnl_hist = {}
     for t in self.pnl_hist:
       con = GetCon(t)
       if con == None:
         continue
       if con not in self.strat_pnl_hist:
         self.strat_pnl_hist[con] = self.pnl_hist[t]
+        self.raw_strat_pnl_hist[con] = self.raw_pnl_hist[t]
         continue
       for i, c in enumerate(self.strat_pnl_hist[con]):
         #print(self.strat_pnl_hist[con])
@@ -89,28 +91,11 @@ class Trader:
         #print(len(self.pnl_hist[t]))
         #print(t)
         self.strat_pnl_hist[con][i] += self.pnl_hist[t][i]
+        self.raw_strat_pnl_hist[con][i] += self.raw_pnl_hist[t][i]
     #print(self.strat_pnl_hist)
-    self.pt.PlotMultiMap(self.strat_pnl_hist, file_name, show=show)
-
-  def PlotStratRawPnl(self, file_name='strat_rawpnl_hist', show=False):
-    self.strat_pnl_hist = {}
-    for t in self.raw_pnl_hist:
-      con = GetCon(t)
-      if con == None:
-        continue
-      if con not in self.strat_pnl_hist:
-        self.strat_pnl_hist[con] = self.raw_pnl_hist[t]
-        continue
-      for i, c in enumerate(self.strat_pnl_hist[con]):
-        #print(self.strat_pnl_hist[con])
-        #print(self.pnl_hist[t])
-        #print(len(self.strat_pnl_hist[con]))
-        #print(len(self.pnl_hist[t]))
-        #print(t)
-        self.strat_pnl_hist[con][i] += self.raw_pnl_hist[t][i]
-    #print(self.strat_pnl_hist)
-    self.pt.PlotMultiMap(self.strat_pnl_hist, file_name, show=show)
-
+    pnl = {i:{'raw':[0.0]+self.raw_strat_pnl_hist[i], 'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist}
+    #self.pt.PlotMultiMap(self.strat_pnl_hist, file_name, show=show)
+    self.pt.MultiPlot(pnl, file_name, show=show)
 
   def Summary(self):
     print('================================================================================================================')
@@ -166,9 +151,9 @@ if __name__=='__main__':
     o = r.read_border(i)
     if o.price > 0 and o.size > 0:
       o.Show()
-      o.contract = GetCon(o.contract) + ('8888' if count%2 == 0 else '9999')
-      t.RegisterOneTrade(o.contract, o.size if o.side == 1 else -o.size, o.price)
+      o.ticker= GetCon(o.ticker) + ('8888' if count%2 == 0 else '9999')
+      t.RegisterOneTrade(o.ticker, o.size if o.side == 1 else -o.size, o.price)
       count += 1
   t.Summary()
-  t.PlotStratPnl()
+  t.PlotStratPnl(show=True)
   print(t.GenStratReport())

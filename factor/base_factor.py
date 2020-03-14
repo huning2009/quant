@@ -15,7 +15,7 @@ class BaseFactor:
     self.CalFactor()
     self.PlotFactor()
     self.TestPnl()
-    self.PlotSignal()
+    #self.PlotSignal()
 
   def PlotSignal(self):
     df_list = [i[1] for i in sorted(self.m.items(), key=lambda x:x[0])]
@@ -28,28 +28,38 @@ class BaseFactor:
       df = pd.merge(df, df_list[i], how='outer')
     print('finished merge used %lfs' % (time.time() - start))
     plt.plot(df['mid'], label='mid', alpha=0.3)
-    buy_x = df[df['money'] < 0].index.tolist()
-    buy = df[df['money']<-0.1]
+    buy = df[df['signal']==1]
     plt.scatter(x=buy.index.tolist(), y=buy['mid'].tolist(), marker='.', s=[4]*len(buy), c='red', label='buy')
-    sell = df[df['money']>0.1]
+    sell = df[df['signal']==-1]
     plt.scatter(x=sell.index.tolist(), y=sell['mid'].tolist(), marker='.', s=[4]*len(sell), c='green', label='sell')
     plt.title('factor percentile signal')
     plt.legend()
     plt.grid()
     plt.show()
 
-  def TestPnl(self):
+  def TestPnl(self, up_bound=0.9, down_bound=0.1, hold_one = True):
     for k in self.m:
       df = self.m[k]
-      up = df['factor'].quantile(0.999)
-      down = df['factor'].quantile(0.001)
+      up = df['factor'].quantile(up_bound)
+      down = df['factor'].quantile(down_bound)
       df['money'] = np.where(df['factor'] > up, df['mid'], 0.0)
       df['money'] = np.where(df['factor'] < down, -df['mid'], df['money'])
-      for i in df['money'].tolist():
-        if abs(i) > 1:
-          self.tr.RegisterOneTrade('ni8888', 1 if i > 0 else -1, abs(i))
+      signal_list = []
+      last = 0.0
+      for i, v in enumerate(df['money'].tolist()):
+        if abs(v) < 1:
+          signal_list.append(0)
+          continue
+        signal = (1 if v > 0 else -1)
+        signal_list.append(signal)
+        if hold_one:
+          if last * v <= 0:
+            self.tr.RegisterOneTrade('ni8888', signal, abs(v))
+            last = v
+        else:
+            self.tr.RegisterOneTrade('ni8888', signal, abs(v))
+      df['signal'] = signal_list
     self.tr.Summary()
-    self.tr.PlotStratRawPnl(show=True)
     self.tr.PlotStratPnl(show=True)
 
   def PlotFactor(self):

@@ -164,7 +164,19 @@ class Reader:
 
 if __name__=='__main__':
   r=Reader()
-  r.load_order_file('/root/hft/build/bin/order.dat')
+  date = '2020-03-19'
+  order_file = '/running/'+date+'/order.dat'
+  r.load_order_file(order_file)
+  latency = {}
   for i in range(r.get_ordersize()):
     o = r.read_border(i)
+    if o.action != 1:
+      continue
+    if o.shot_time < 100:
+      continue
     o.Show()
+    if o.ticker not in latency:
+      latency[o.ticker] = []
+    latency[o.ticker].append(o.send_time - o.shot_time)
+  for i in latency:
+    print("%s:%lfs" %(i, np.mean(latency[i])))

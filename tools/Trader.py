@@ -86,6 +86,8 @@ class Trader:
         #print(self.strat_pnl_hist[con])
         #print(self.pnl_hist[t])
         #print(len(self.strat_pnl_hist[con]))
+        if len(self.strat_pnl_hist[con]) != len(self.pnl_hist[t]):
+          break
         #print(len(self.pnl_hist[t]))
         #print(t)
         self.strat_pnl_hist[con][i] += self.pnl_hist[t][i]
@@ -102,8 +104,8 @@ class Trader:
         self.strat_pnl_hist[con] = self.raw_pnl_hist[t]
         continue
       for i, c in enumerate(self.strat_pnl_hist[con]):
-        #print(self.strat_pnl_hist[con])
-        #print(self.pnl_hist[t])
+        print(self.strat_pnl_hist[con])
+        print(self.pnl_hist[t])
         #print(len(self.strat_pnl_hist[con]))
         #print(len(self.pnl_hist[t]))
         #print(t)
@@ -159,7 +161,8 @@ class Trader:
 if __name__=='__main__':
   t = Trader()
   r = Reader()
-  r.load_order_file('/root/hft/build/bin/order.dat')
+  #r.load_order_file('/root/hft/build/bin/order.dat')
+  r.load_order_file('/running/2020-03-17/order_backtest.dat')
   s = r.get_ordersize()
   count = 0
   for i in range(s):

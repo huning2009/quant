@@ -12,6 +12,7 @@ class MarketSnapshot:
     self.volume = -1
     self.turnover = -1.0
     self.open_interest = -1.0
+    self.is_trade_update= False
     self.time = -1
     self.is_initialized = False
     self.depth = depth

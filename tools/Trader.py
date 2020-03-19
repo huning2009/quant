@@ -11,7 +11,7 @@ def GetCon(ticker):
       return ticker[:i]
 
 class Trader:
-  def __init__(self, enable_fee = False, fee_rate=0.0, record=True):
+  def __init__(self, enable_fee = False, fee_rate=0.0, record=False, prefix='', show_raw = True):
     self.caler = CALER('/root/hft/config/contract/bk_contract.config')
     self.pt = Plotor()
     self.pos = {}
@@ -24,6 +24,8 @@ class Trader:
     self.trade_count = {}
     self.fee_rate = fee_rate
     self.record = record
+    self.prefix = prefix
+    self.show_raw = show_raw
     if record == True:
       self.f = open('traders_record.txt', 'w')
 
@@ -73,14 +75,16 @@ class Trader:
     print(self.pnl_hist)
     print(self.raw_pnl_hist)
 
-  def PlotStratPnl(self, file_name='strat_pnl_hist'):
+  def GetStratPnl(self, prefix=''):
     self.strat_pnl_hist = {}
+    self.raw_strat_pnl_hist = {}
     for t in self.pnl_hist:
       con = GetCon(t)
       if con == None:
         continue
       if con not in self.strat_pnl_hist:
         self.strat_pnl_hist[con] = self.pnl_hist[t]
+        self.raw_strat_pnl_hist[con] = self.raw_pnl_hist[t]
         continue
       for i, c in enumerate(self.strat_pnl_hist[con]):
         #print(self.strat_pnl_hist[con])
@@ -89,30 +93,12 @@ class Trader:
         if len(self.strat_pnl_hist[con]) != len(self.pnl_hist[t]):
           break
         #print(len(self.pnl_hist[t]))
-        #print(t)
         self.strat_pnl_hist[con][i] += self.pnl_hist[t][i]
-    #print(self.strat_pnl_hist)
-    self.pt.PlotMultiMap(self.strat_pnl_hist, file_name)
+        self.raw_strat_pnl_hist[con][i] += self.raw_pnl_hist[t][i]
+    return {i:{prefix+'raw':[0.0]+self.raw_strat_pnl_hist[i], prefix+'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist} if self.show_raw else {i:{prefix+'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist}
 
-  def PlotStratRawPnl(self, file_name='strat_rawpnl_hist', show=False):
-    self.strat_pnl_hist = {}
-    for t in self.raw_pnl_hist:
-      con = GetCon(t)
-      if con == None:
-        continue
-      if con not in self.strat_pnl_hist:
-        self.strat_pnl_hist[con] = self.raw_pnl_hist[t]
-        continue
-      for i, c in enumerate(self.strat_pnl_hist[con]):
-        print(self.strat_pnl_hist[con])
-        print(self.pnl_hist[t])
-        #print(len(self.strat_pnl_hist[con]))
-        #print(len(self.pnl_hist[t]))
-        #print(t)
-        self.strat_pnl_hist[con][i] += self.raw_pnl_hist[t][i]
-    #print(self.strat_pnl_hist)
-    self.pt.PlotMultiMap(self.strat_pnl_hist, file_name, show=show)
-
+  def PlotStratPnl(self, file_name='strat_pnl_hist', show=False):
+    self.pt.MultiPlot(self.GetStratPnl(), file_name, show=show, prefix=self.prefix)
 
   def Summary(self):
     print('================================================================================================================')
@@ -169,9 +155,9 @@ if __name__=='__main__':
     o = r.read_border(i)
     if o.price > 0 and o.size > 0:
       o.Show()
-      o.contract = GetCon(o.contract) + ('8888' if count%2 == 0 else '9999')
-      t.RegisterOneTrade(o.contract, o.size if o.side == 1 else -o.size, o.price)
+      o.ticker= GetCon(o.ticker) + ('8888' if count%2 == 0 else '9999')
+      t.RegisterOneTrade(o.ticker, o.size if o.side == 1 else -o.size, o.price)
       count += 1
   t.Summary()
-  t.PlotStratPnl()
+  t.PlotStratPnl(show=True)
   print(t.GenStratReport())

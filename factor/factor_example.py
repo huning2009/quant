@@ -16,4 +16,4 @@ class B(BaseFactor):
 
 if __name__ == '__main__':
   b = B(mode = 'tune', show_raw=False)
-  b.run('2020-02-27', '2020-03-02', ['ni8888', 'cu8888'])
+  b.run('2020-02-27', '2020-03-02', ['ni8888', 'cu8888', 'rb8888'])

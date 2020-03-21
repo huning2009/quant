@@ -21,7 +21,7 @@ class Trader:
     self.pnl_hist = {}
     self.raw_pnl_hist = {}
     self.fee = {}
-    self.trade_count = {}
+    self.trade_round = {}
     self.fee_rate = fee_rate
     self.record = record
     self.prefix = prefix
@@ -42,7 +42,7 @@ class Trader:
       self.avgcost[ticker] = price
       self.pnl[ticker] = 0.0
       self.raw_pnl[ticker] = 0.0
-      self.trade_count[ticker] = 1.0
+      self.trade_round[ticker] = 1.0
       self.fee[ticker] = 0.0
       self.pnl_hist[ticker] = []
       self.raw_pnl_hist[ticker] = []
@@ -66,7 +66,7 @@ class Trader:
     self.pos[ticker] += size
     if self.pos[ticker] == 0:
       self.avgcost[ticker] = 0.0
-    self.trade_count[ticker] += 1
+    self.trade_round[ticker] += 1
     trade_record = "Trade %s %d@%f" %(ticker, size, price)
     if self.record:
       self.f.write(trade_record+'\n')
@@ -74,11 +74,16 @@ class Trader:
   def PNL(self):
     print(self.pnl_hist)
     print(self.raw_pnl_hist)
+    print(self.GetStratPnl())
+
+  def GetTickerPnl(self, prefix=''):
+    return {i:{prefix+'raw':[0.0]+self.raw_pnl_hist[i], prefix+'net': [0.0]+self.pnl_hist[i]} for i in self.pnl_hist} if self.show_raw else {i:{prefix+'net': [0.0]+self.pnl_hist[i]} for i in self.pnl_hist}
 
   def GetStratPnl(self, prefix=''):
     self.strat_pnl_hist = {}
     self.raw_strat_pnl_hist = {}
-    for t in self.pnl_hist:
+    m = self.GetTickerPnl(prefix)
+    for t in m:
       con = GetCon(t)
       if con == None:
         continue
@@ -86,11 +91,9 @@ class Trader:
         self.strat_pnl_hist[con] = self.pnl_hist[t]
         self.raw_strat_pnl_hist[con] = self.raw_pnl_hist[t]
         continue
+      if len(self.pnl_hist[t]) != len(self.strat_pnl_hist[con]):
+        print('main and hedge ticker pnl list length is not equal %d %d' %(len(self.pnl_hist[t]), len(self.strat_pnl_hist[con])))
       for i, c in enumerate(self.strat_pnl_hist[con]):
-        #print(self.strat_pnl_hist[con])
-        #print(self.pnl_hist[t])
-        #print(len(self.strat_pnl_hist[con]))
-        #print(len(self.pnl_hist[t]))
         self.strat_pnl_hist[con][i] += self.pnl_hist[t][i]
         self.raw_strat_pnl_hist[con][i] += self.raw_pnl_hist[t][i]
     return {i:{prefix+'raw':[0.0]+self.raw_strat_pnl_hist[i], prefix+'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist} if self.show_raw else {i:{prefix+'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist}
@@ -99,20 +102,24 @@ class Trader:
     self.pt.MultiPlot(self.GetStratPnl(), file_name, show=show, prefix=self.prefix)
 
   def Summary(self):
+    print(self.GenDFReport())
+    print(self.GenStratReport())
+
+  def HistorySummary(self):
     print('================================================================================================================')
     sort_key = sorted(self.pos.keys())
     for t in sort_key:
-      #print('for %s trade_count=%d, pnl=%.2f, left_pos=%.2f, avgcost=%.2f, for feerate %f, rough_fee is %.2f' %(t, self.trade_count[t], self.pnl[t], self.pos[t], self.avgcost[t], self.fee_rate, abs(self.fee_rate*self.trade_count[t]*self.avgcost[t])))
-      print('for %s trade_count=%d, pnl=%.2f, left_pos=%.2f, avgcost=%.2f, rough_fee is %.2f' %(t, self.trade_count[t], self.pnl[t], self.pos[t], self.avgcost[t], self.fee[t]))
+      #print('for %s trade_round=%d, pnl=%.2f, left_pos=%.2f, avgcost=%.2f, for feerate %f, rough_fee is %.2f' %(t, self.trade_round[t], self.pnl[t], self.pos[t], self.avgcost[t], self.fee_rate, abs(self.fee_rate*self.trade_round[t]*self.avgcost[t])))
+      print('for %s trade_round=%d, pnl=%.2f, left_pos=%.2f, avgcost=%.2f, rough_fee is %.2f' %(t, self.trade_round[t], self.pnl[t], self.pos[t], self.avgcost[t], self.fee[t]))
     print('===============================================================================================================')
 
   def GenDFReport(self):
     r = []
     sort_key = sorted(self.pos.keys())
     for t in sort_key:
-      #print('for %s trade_count=%d, pnl=%.2f, left_pos=%.2f, avgcost=%.2f, rough_fee is %.2f' %(t, self.trade_count[t], self.pnl[t], self.pos[t], self.avgcost[t], self.fee[t]))
-      r.append([t, self.trade_count[t], round(self.pnl[t],1), self.pos[t], self.avgcost[t], round(self.fee[t],1)])
-    df = pd.DataFrame(r, columns = ['ticker', 'trade_count', 'net_pnl', 'left_position', 'avgcost', 'fee'])
+      pnl_l = self.pnl_hist[t]
+      r.append([t, self.trade_round[t], round(self.pnl[t],1), self.pos[t], self.avgcost[t], round(self.fee[t],1), np.mean(pnl_l)/(np.std(pnl_l)+0.01)])
+    df = pd.DataFrame(r, columns = ['ticker', 'trade_round', 'net_pnl', 'left_position', 'avgcost', 'fee', 'sharp'])
     df = df.set_index('ticker')
     return df
 
@@ -130,7 +137,7 @@ class Trader:
         self.strat_pnl[con] = m[k]
         continue
       self.strat_pnl[con]['net_pnl'] += m[k]['net_pnl']
-      self.strat_pnl[con]['trade_count'] = max(m[k]['trade_count'], self.strat_pnl[con]['trade_count'])
+      self.strat_pnl[con]['trade_round'] = max(m[k]['trade_round'], self.strat_pnl[con]['trade_round'])
       self.strat_pnl[con]['left_position'] = max(m[k]['left_position'], self.strat_pnl[con]['left_position'])
       self.strat_pnl[con]['avgcost'] -= m[k]['avgcost']
       self.strat_pnl[con]['avgcost'] = -self.strat_pnl[con]['avgcost']
@@ -140,21 +147,28 @@ class Trader:
         if isinstance(self.strat_pnl[k][c], float):
           self.strat_pnl[k][c] = round(self.strat_pnl[k][c], 1)
     rdf = pd.DataFrame(self.strat_pnl).T
-    return rdf[['trade_count', 'net_pnl', 'left_position', 'avgcost', 'fee']]
+    return rdf[['trade_round', 'net_pnl', 'left_position', 'avgcost', 'fee']]
 
 if __name__=='__main__':
   t = Trader()
   r = Reader()
-  r.load_order_file('/root/hft/build/bin/order.dat')
+  #r.load_order_file('/root/hft/build/bin/order.dat')
+  r.load_order_file('/root/hft/build/bin/order_2020-03-17.dat')
   s = r.get_ordersize()
   count = 0
   for i in range(s):
     o = r.read_border(i)
     if o.price > 0 and o.size > 0:
-      o.Show()
+      #o.Show()
       o.ticker= GetCon(o.ticker) + ('8888' if count%2 == 0 else '9999')
       t.RegisterOneTrade(o.ticker, o.size if o.side == 1 else -o.size, o.price)
+      #t.RegisterOneTrade(o.ticker, o.size, o.price)
       count += 1
+  #t.RegisterOneTrade("IC8888", -3, 5800)
+  #t.RegisterOneTrade("IC9999", -3, 5800)
+  #t.RegisterOneTrade("IC8888", -3, 5800)
+  #t.RegisterOneTrade("IC9999", -3, 5800)
   t.Summary()
   t.PlotStratPnl(show=True)
-  print(t.GenStratReport())
+  #print(t.GenStratReport())
+  #print(t.GenDFReport())

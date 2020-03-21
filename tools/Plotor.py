@@ -46,7 +46,12 @@ class Plotor:
         this_ax.plot(m[t])
       elif isinstance(m[t], dict):
         for i in m[t]:
-          this_ax.plot(m[t][i], label=i)
+          if '_twin' in  i:
+            x = this_ax.twinx()
+            x.plot(m[t][i], label=i.lstrip('_twin'), c='c')
+            x.legend(loc='lower right')
+          else:
+            this_ax.plot(m[t][i], label=i)
           this_ax.legend()
       else:
         print('wrong plot dict content')
@@ -93,7 +98,8 @@ class Plotor:
 if __name__ == '__main__':
   pt = Plotor()
   m = {"a":[i**2 for i in range(100)], "b":[i**3 for i in range(100)]}
-  tm = {"a":{i:i**2 for i in range(10)}, "b":{i:i**3 for i in range(10)}}
+  tm = {"a":{str(i):[(i+1)*j for j in range(100)] for i in range(2)}}
+  tm['a']['test_twin'] = [i**2*10 for i in range(100)]
   m = {'IH': [398.26281569824187, 676.8502469238279], 'IC': [543.9928998046876, 1008.4046122070322, 1472.891766406251, 1937.4634248046896], 'ni': [86.0, 142.0], 'IF': [430.87182810058596, 742.1164718994141]}
   #pt.PlotMultiMap(tm, 'test', 'pnl', show=True)
-  pt.MultiPlot(m, 'test', show=True)
+  pt.MultiPlot(tm, 'test', show=True)

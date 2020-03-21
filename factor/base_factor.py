@@ -8,9 +8,10 @@ import time
 
 shot=MarketSnapshot()
 class BaseFactor:
-  def __init__(self, mode='tune', show_raw=False):  # tune->factor tune param test->multifactor test
+  def __init__(self, mode='tune', show_raw=False):  # tune->factor tune param, test->multifactor test
     self.pt = Plotor()
     self.f_value = {}
+    self.mid_value = {}
     self.tr = Trader(show_raw=show_raw)
     self.return_list = []
     self.mode = mode
@@ -35,7 +36,9 @@ class BaseFactor:
     df = pd.read_csv(path, header=None)
     df.columns = shot.get_columns()
     df['mid'] = (df['asks[0]'] + df['bids[0]']) / 2
-    #df['return1'] = df['mid'].diff(1).fillna(0.0)/df['mid']
+    if ticker not in self.mid_value:
+      self.mid_value[ticker] = []
+    self.mid_value[ticker] += df['mid'].tolist()
     self.InsertReturn(df, [3,5,10,20,50])
     return df
 
@@ -66,13 +69,16 @@ class BaseFactor:
           df[fn] = mm[fn]
           if fn not in self.f_value:
             self.f_value[fn] = {}
-          if fn not in self.f_value[fn]:
-            self.f_value[fn][t] = []
-          self.f_value[fn][t] += df[fn].tolist()
+          if t not in self.f_value[fn]:
+            self.f_value[fn][t] = {}
+            self.f_value[fn][t]['fv']= []
+          self.f_value[fn][t]['fv'] += df[fn].tolist()
     return mm.keys()
  
   def PlotFactor(self, factor_name):
     for fn in factor_name:
+      for t in self.f_value[fn]:
+        self.f_value[fn][t]['mid_twin'] = self.mid_value[t]
       self.pt.MultiPlot(self.f_value[fn], fig_name='factor_value', show=True, prefix=fn)
 
   def TestPnl(self, factor_name, up_bound=0.9, down_bound=0.1, hold_one = True):
@@ -112,6 +118,8 @@ class BaseFactor:
                 self.tr.RegisterOneTrade(t, signal, abs(v))
                 signal_list.append(signal)
           df[fn+'_signal'] = signal_list
+          df['pnl'] = np.where(df[fn+'_signal']!=0, df[fn+'_money'], 0)
+          print('%s pnl is %lf' % (t, df['pnl'].sum()))
       self.tr.Summary()
       self.tr.PlotStratPnl(show=True)
 
@@ -120,6 +128,7 @@ class BaseFactor:
     for fn in factor_name:
       self.tr = Trader(prefix=fn)
       for t in self.m:
+        pnl_temp = []
         for k in self.m[t]:
           df = self.m[t][k]
           up = df[fn].quantile(up_bound)
@@ -144,6 +153,9 @@ class BaseFactor:
                 self.tr.RegisterOneTrade(t, signal, abs(v))
                 signal_list.append(signal)
           df[fn+'_signal'] = signal_list
+          df['pnl'] = np.where(df[fn+'_signal']!=0, df[fn+'_money'], 0)
+          pnl_temp += df['pnl'].tolist()
+        print('%s pnl is %lf' % (t, np.sum(pnl_temp)))
       self.tr.Summary()
       temp = self.tr.GetStratPnl(fn)
       if len(pnl) == 0:
@@ -201,24 +213,6 @@ class BaseFactor:
     print(self.m['ni8888']['2020-02-28'].columns)
 
   def CalIC(self, factor_name):
-    ic_map = {}
-    for t in self.m:
-      if t not in ic_map:
-        ic_map[t] = {}
-      for r in self.return_list:
-        if r not in ic_map[t]:
-          ic_map[t][r] = {}
-        for fn in factor_name:
-          corr = []
-          for d in self.m[t]:
-            corr.append(abs(self.m[t][d][r].corr(self.m[t][d][fn])))
-          ic_map[t][r][fn] = np.mean(corr)
-    ic = {}
-    for i in ic_map:
-      ic[i] = pd.DataFrame(ic_map[i])
-      print(ic[i])
-
-  def CalIC2(self, factor_name):
     ic_map = {}
     for t in self.m:
       if t not in ic_map:

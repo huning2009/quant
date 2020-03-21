@@ -94,6 +94,12 @@ class Trader:
       if len(self.pnl_hist[t]) != len(self.strat_pnl_hist[con]):
         print('main and hedge ticker pnl list length is not equal %d %d' %(len(self.pnl_hist[t]), len(self.strat_pnl_hist[con])))
       for i, c in enumerate(self.strat_pnl_hist[con]):
+        #print(self.strat_pnl_hist[con])
+        #print(self.pnl_hist[t])
+        #print(len(self.strat_pnl_hist[con]))
+        if len(self.strat_pnl_hist[con]) != len(self.pnl_hist[t]):
+          break
+        #print(len(self.pnl_hist[t]))
         self.strat_pnl_hist[con][i] += self.pnl_hist[t][i]
         self.raw_strat_pnl_hist[con][i] += self.raw_pnl_hist[t][i]
     return {i:{prefix+'raw':[0.0]+self.raw_strat_pnl_hist[i], prefix+'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist} if self.show_raw else {i:{prefix+'net': [0.0]+self.strat_pnl_hist[i]} for i in self.strat_pnl_hist}
